@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id              String          @id @default(cuid())
+  name            String
+  email           String          @unique
+  phone           String?
+  role            String
+  department      String?
+  passwordHash    String          @map("password_hash")
+  isOnline        Boolean         @default(false) @map("is_online")
+  lastSeen        DateTime?       @map("last_seen")
+
+  
+  // Leaderboard fields
+  points                    Int     @default(0)
+  level                     Int     @default(1)
+  ticketsResolved           Int     @default(0) @map("tickets_resolved")
+  averageResolutionTimeHours Float?  @map("average_resolution_time_hours")
+  customerSatisfactionRating Float? @map("customer_satisfaction_rating")
+  currentStreak             Int     @default(0) @map("current_streak")
+  totalTicketsHandled       Int     @default(0) @map("total_tickets_handled")
+  averageResponseTimeMinutes Float? @map("average_response_time_minutes")
+  monthlyGrowth             Float   @default(0) @map("monthly_growth")
+  specialRecognition        String? @map("special_recognition")
+  lastActiveDate            DateTime? @map("last_active_date")
+  
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  sentMessages    TicketMessage[]
+  assignedTickets Ticket[]        @relation("AssignedTickets")
+  createdTickets  Ticket[]        @relation("CustomerTickets")
+  achievements    UserAchievement[]
+  chatMessages    ChatMessage[]
+
+
+  @@map("users")
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  icon        String   // Icon name (star, zap, crown, target, award, etc.)
+  color       String   // Color variant (bronze, silver, gold, purple, blue, green)
+  pointsReward Int     @default(0) @map("points_reward")
+  requirements String  // JSON string of requirements
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String      @map("user_id")
+  achievementId String      @map("achievement_id")
+  unlockedAt    DateTime    @default(now()) @map("unlocked_at")
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  tickets     Ticket[]
+
+  @@map("categories")
+}
+
+model Ticket {
+  id              String          @id
+  customerId      String          @map("customer_id")
+  assignedStaffId String?         @map("assigned_staff_id")
+  categoryId      String          @map("category_id")
+  priority        String
+  status          String
+  subject         String
+  description     String
+  resolutionTime  Float?          @map("resolution_time") // in hours
+  firstResponseTime Float?        @map("first_response_time") // in minutes
+  customerRating  Int?            @map("customer_rating") // 1-5 stars
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  resolvedAt      DateTime?       @map("resolved_at")
+  
+  messages        TicketMessage[]
+  category        Category        @relation(fields: [categoryId], references: [id])
+  assignedStaff   User?           @relation("AssignedTickets", fields: [assignedStaffId], references: [id])
+  customer        User            @relation("CustomerTickets", fields: [customerId], references: [id])
+
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id             String   @id @default(cuid())
+  ticketId       String   @map("ticket_id")
+  senderId       String   @map("sender_id")
+  message        String
+  attachmentUrls String   @default("[]") @map("attachment_urls")
+  isInternal     Boolean  @default(false) @map("is_internal")
+  createdAt      DateTime @default(now()) @map("created_at")
+  sender         User     @relation(fields: [senderId], references: [id])
+  ticket         Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_messages")
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  senderId  String   @map("sender_id")
+  message   String
+  isEdited  Boolean  @default(false) @map("is_edited")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}
+
+
